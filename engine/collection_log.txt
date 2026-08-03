@@ -1,0 +1,28 @@
+[19:20:51] ============================================================
+[19:20:51] ZEPTO REVIEW CORPUS — STAGE 1: INGEST
+[19:20:51] ============================================================
+[19:20:51] Play Store: pulling up to 3000 reviews for com.zeptoconsumerapp
+[19:20:52]   200 collected
+[19:20:52]   400 collected
+[19:20:53]   600 collected
+[19:20:54]   800 collected
+[19:20:55]   1000 collected
+[19:20:56]   1200 collected
+[19:20:56]   1400 collected
+[19:20:57]   1600 collected
+[19:20:58]   1800 collected
+[19:20:59]   2000 collected
+[19:20:59]   2200 collected
+[19:21:00]   2400 collected
+[19:21:01]   2600 collected
+[19:21:02]   2800 collected
+[19:21:03]   3000 collected
+[19:21:03] App Store: pulling up to 10 pages for id=1575323645
+[19:21:04]   page 1 empty — feed exhausted
+[19:21:04] ------------------------------------------------------------
+[19:21:04] TOTAL collected : 3000
+[19:21:04] After dedupe    : 3000
+[19:21:04]   google_play   : 3000
+[19:21:04] Date range      : 2026-07-20 to 2026-08-01
+[19:21:04] Mean length     : 14.6 words
+[19:21:04] Mean rating     : 3.38

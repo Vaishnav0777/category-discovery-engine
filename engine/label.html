@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Label validation sheet</title>
+<style>
+:root{--ink:#14121a;--ink2:#4b4759;--line:#e2dfea;--bg:#faf9fc;--card:#fff;
+ --brand:#5b2d90;--ok:#009E73;--amber:#E69F00;--blue:#0072B2}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ background:var(--bg);color:var(--ink);padding:26px}
+.wrap{max-width:880px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--ink2);font-size:14px;margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:16px}
+.bar{height:7px;background:#eceaf3;border-radius:4px;overflow:hidden;margin-bottom:18px}
+.bar div{height:100%;background:var(--brand);transition:width .2s}
+.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--ink2);margin-bottom:12px}
+.review{font-size:19px;line-height:1.55;min-height:110px}
+.keys{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:6px}
+@media(max-width:640px){.keys{grid-template-columns:1fr}}
+button.k{display:flex;align-items:center;gap:12px;text-align:left;border:1px solid var(--line);
+ background:#fff;border-radius:9px;padding:12px 14px;font:inherit;font-size:15px;cursor:pointer}
+button.k:hover{border-color:var(--brand);background:#faf7fe}
+button.k b{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+ flex:none;border-radius:6px;background:#f1eef7;color:var(--brand);font-size:14px}
+button.k span{font-size:13px;color:var(--ink2);display:block}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 15px;font:inherit;
+ font-size:14px;cursor:pointer}
+.btn.p{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600}
+.btn:disabled{opacity:.4;cursor:default}
+.note{background:#fdf8ec;border:1px solid #f0e0b8;border-radius:9px;padding:14px 16px;
+ font-size:14px;color:#5c4708;line-height:1.55}
+input[type=file]{font:inherit;font-size:14px}
+.done{text-align:center;padding:34px 20px}
+.done .n{font-size:44px;font-weight:700;color:var(--brand)}
+.tally{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--ink2)}
+.tally span{background:#f1eef7;border-radius:20px;padding:3px 11px}
+kbd{background:#f1eef7;border-radius:4px;padding:1px 6px;font-size:13px;font-family:inherit}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Label the validation sheet</h1>
+<p class="sub">Load <code>validation_sheet.csv</code>, label all 60 by keyboard, download it back.
+Nothing leaves your machine — this page has no network access.</p>
+
+<div class="card" id="load">
+  <div class="note" style="margin-bottom:15px">
+    <b>Label on instinct, roughly 15 seconds each.</b> Most reviews will be <b>B7 — none</b>, and that is
+    the correct answer. Do not hunt for a barrier that isn't there: forcing labels inflates the
+    agreement score and makes the whole exercise worthless.
+  </div>
+  <input type="file" id="f" accept=".csv">
+</div>
+
+<div id="ui" style="display:none">
+  <div class="bar"><div id="prog" style="width:0"></div></div>
+  <div class="card">
+    <div class="meta"><span id="pos"></span><span id="rate"></span></div>
+    <div class="review" id="txt"></div>
+  </div>
+  <div class="keys" id="keys"></div>
+  <div class="row">
+    <button class="btn" id="back">← Back</button>
+    <button class="btn" id="skip">Skip this one</button>
+    <button class="btn p" id="stop">Stop &amp; export what I've done</button>
+    <span class="sub" style="margin:0">Press <kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> to go back</span>
+  </div>
+  <div class="note" style="margin-top:14px;font-size:13.5px">
+    <b>30 labelled rows is a perfectly reportable sample.</b> The scorer uses whatever you've done and
+    tells you the count. A smaller n honestly reported beats a larger one you rushed through, because
+    rushing produces careless labels and a kappa that measures your fatigue rather than the classifier.
+  </div>
+  <div class="tally" id="tally"></div>
+</div>
+
+<div id="fin" style="display:none">
+  <div class="card done">
+    <div class="n" id="fn">0</div>
+    <p style="margin:4px 0 20px">rows labelled</p>
+    <button class="btn p" id="dl">Download validation_sheet.csv</button>
+    <div class="tally" id="ftally" style="justify-content:center"></div>
+    <p class="sub" style="margin:22px 0 0">Replace the file in your <code>engine</code> folder with this
+    one, then run<br><code>python3 3_validate.py score</code></p>
+  </div>
+</div>
+
+</div>
+<script>
+const CODES=[["B7_NONE","Delivery, price, bugs, support, or generic praise"],
+ ["B4_ASSORTMENT","The thing they want isn't stocked"],
+ ["B1_TRUST","Won't buy without reviews, or doubts it's genuine / not expired"],
+ ["B2_FIT","Can't work out which one suits them"],
+ ["B3_PRICE_RISK","Too much money to risk on something unfamiliar"],
+ ["B5_OCCASION","Remembered the need at the wrong moment"],
+ ["B6_AWARENESS","Didn't know Zepto sold it"]];
+
+let rows=[],hdr=[],i=0;
+
+/* RFC-4180 parser: reviews are full of commas and quotes, and a naive split
+   on "," silently shreds them. */
+function parseCSV(t){
+  const out=[];let row=[],f="",q=false;
+  t=t.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  for(let k=0;k<t.length;k++){const c=t[k];
+    if(q){ if(c==='"'){ if(t[k+1]==='"'){f+='"';k++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(f); f=""; }
+    else if(c==="\n"){ row.push(f); f=""; out.push(row); row=[]; }
+    else f+=c;
+  }
+  if(f.length||row.length){ row.push(f); out.push(row); }
+  return out.filter(r=>r.length>1||r[0]!=="");
+}
+const esc=v=>/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+
+document.getElementById("f").onchange=e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const g=parseCSV(rd.result);
+    hdr=g[0];
+    const ci={}; hdr.forEach((h,n)=>ci[h.trim()]=n);
+    if(!("review_text" in ci)||!("my_label" in ci)){
+      alert("That doesn't look like validation_sheet.csv — no review_text / my_label column.");return;}
+    rows=g.slice(1).filter(r=>r.length>=hdr.length).map(r=>({
+      cells:r, text:r[ci.review_text]||"", rating:r[ci.rating]||"", li:ci.my_label}));
+    if(!rows.length){alert("No rows found.");return;}
+    document.getElementById("load").style.display="none";
+    document.getElementById("ui").style.display="";
+    i=rows.findIndex(r=>!r.cells[r.li].trim()); if(i<0)i=0;
+    draw();
+  };
+  rd.readAsText(file);
+};
+
+const keys=document.getElementById("keys");
+CODES.forEach((c,n)=>{
+  const b=document.createElement("button"); b.className="k";
+  b.innerHTML=`<b>${n+1}</b><div>${c[0].replace(/^B\d_/,"")}<span>${c[1]}</span></div>`;
+  b.onclick=()=>set(c[0]); keys.appendChild(b);
+});
+
+function draw(){
+  if(i>=rows.length) return finish();
+  const r=rows[i];
+  document.getElementById("pos").textContent=`Review ${i+1} of ${rows.length}`;
+  document.getElementById("rate").textContent=r.rating?r.rating+" ★":"";
+  document.getElementById("txt").textContent=r.text;
+  document.getElementById("prog").style.width=(i/rows.length*100)+"%";
+  document.getElementById("back").disabled=(i===0);
+  tally("tally");
+}
+function set(code){ rows[i].cells[rows[i].li]=code; i++; draw(); }
+function tally(id){
+  const c={}; rows.forEach(r=>{const v=r.cells[r.li].trim(); if(v)c[v]=(c[v]||0)+1;});
+  document.getElementById(id).innerHTML=Object.entries(c).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<span>${k.replace(/^B\d_/,"")} ${v}</span>`).join("");
+}
+document.getElementById("back").onclick=()=>{ if(i>0){i--;draw();} };
+document.getElementById("skip").onclick=()=>{ i++; draw(); };
+document.getElementById("stop").onclick=()=>{
+  const n=rows.filter(r=>r.cells[r.li].trim()).length;
+  if(!n){ alert("Nothing labelled yet."); return; }
+  if(n<20 && !confirm(`Only ${n} labelled. Below about 20 the score gets too noisy to `+
+                      `report meaningfully. Export anyway?`)) return;
+  finish();
+};
+document.onkeydown=e=>{
+  if(document.getElementById("ui").style.display==="none") return;
+  if(e.key>="1"&&e.key<="7"){ set(CODES[+e.key-1][0]); e.preventDefault(); }
+  if(e.key==="ArrowLeft"&&i>0){ i--; draw(); }
+};
+
+function finish(){
+  document.getElementById("ui").style.display="none";
+  const fin=document.getElementById("fin"); fin.style.display="";
+  const n=rows.filter(r=>r.cells[r.li].trim()).length;
+  document.getElementById("fn").textContent=n;
+  tally("ftally");
+  document.getElementById("dl").onclick=()=>{
+    const csv=[hdr.map(esc).join(",")].concat(rows.map(r=>r.cells.map(esc).join(","))).join("\n");
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download="validation_sheet.csv"; a.click();
+  };
+}
+</script>
+</body>
+</html>

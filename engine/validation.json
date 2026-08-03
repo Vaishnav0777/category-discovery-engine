@@ -1,0 +1,69 @@
+{
+ "n": 30,
+ "seed": 42,
+ "accuracy": 0.5333,
+ "cohens_kappa": 0.3193,
+ "kappa_reading": "(fair)",
+ "per_barrier": {
+  "B1_TRUST": {
+   "support": 7,
+   "precision": 0.75,
+   "recall": 0.429,
+   "f1": 0.545
+  },
+  "B2_FIT": {
+   "support": 0,
+   "precision": null,
+   "recall": null,
+   "f1": null
+  },
+  "B3_PRICE_RISK": {
+   "support": 0,
+   "precision": 0.0,
+   "recall": null,
+   "f1": null
+  },
+  "B4_ASSORTMENT": {
+   "support": 3,
+   "precision": 0.6,
+   "recall": 1.0,
+   "f1": 0.75
+  },
+  "B5_OCCASION": {
+   "support": 0,
+   "precision": 0.0,
+   "recall": null,
+   "f1": null
+  },
+  "B6_AWARENESS": {
+   "support": 0,
+   "precision": 0.0,
+   "recall": null,
+   "f1": null
+  },
+  "B7_NONE": {
+   "support": 20,
+   "precision": 0.833,
+   "recall": 0.5,
+   "f1": 0.625
+  }
+ },
+ "confusion": {
+  "B7_NONE->B4_ASSORTMENT": 2,
+  "B7_NONE->B5_OCCASION": 3,
+  "B7_NONE->B3_PRICE_RISK": 2,
+  "B7_NONE->B7_NONE": 10,
+  "B1_TRUST->B5_OCCASION": 1,
+  "B1_TRUST->B1_TRUST": 3,
+  "B1_TRUST->B7_NONE": 2,
+  "B4_ASSORTMENT->B4_ASSORTMENT": 3,
+  "B7_NONE->B6_AWARENESS": 2,
+  "B1_TRUST->B3_PRICE_RISK": 1,
+  "B7_NONE->B1_TRUST": 1
+ },
+ "negative_control": {
+  "n": 20,
+  "note": "reviews the gate rejected; none should carry a barrier",
+  "leaked_into_extraction": 0
+ }
+}

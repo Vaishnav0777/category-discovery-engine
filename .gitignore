@@ -1,0 +1,36 @@
+# Secrets — never commit an API key
+.env
+*.key
+_model_labels.json      # held out so the labelling exercise stays blind for anyone repeating it
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Intermediate pipeline artefacts — regenerate with 2_analyse.py
+corpus_gated.json
+corpus_extracted.json
+
+# Personal working docs — useful to me, odd in a public repo
+00_START_HERE.md
+03_Defence_Guide.md
+
+# Superseded build files
+deck/build.js
+deck/mid.py
+
+# OS noise
+.DS_Store
+Thumbs.db
+*.tmp
+.~lock*
+
+# QA renders
+deck/qa/
+appendix/qa/
+slide-*.jpg
+s-*.jpg
+pg-*.jpg
+*.pdf.tmp

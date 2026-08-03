@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Category Discovery Engine + First Buy</title>
+<style>
+/* Okabe-Ito colour-blind-safe palette throughout. No red/green pairs carry meaning. */
+:root{
+  --ink:#14121a; --ink2:#4b4759; --line:#e2dfea; --bg:#faf9fc; --card:#ffffff;
+  --brand:#0072B2; --brand2:#5b2d90;
+  --c1:#0072B2; --c2:#E69F00; --c3:#009E73; --c4:#CC79A7;
+  --c5:#56B4E9; --c6:#D55E00; --c7:#8c8a97;
+  --ok:#009E73; --warn:#E69F00;
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+     color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+a{color:var(--brand)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.hd{display:flex;align-items:center;gap:26px;height:60px}
+.logo{font-weight:700;font-size:15px;letter-spacing:-.2px}
+.logo span{color:var(--brand2)}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav button{border:0;background:none;font:inherit;font-size:14px;font-weight:500;color:var(--ink2);
+  padding:7px 13px;border-radius:7px;cursor:pointer}
+nav button:hover{background:var(--bg)}
+nav button.on{background:var(--brand2);color:#fff}
+
+.page{display:none;padding:34px 0 80px}
+.page.on{display:block}
+
+h1{font-size:29px;line-height:1.2;margin:0 0 8px;letter-spacing:-.5px}
+h2{font-size:19px;margin:38px 0 12px;letter-spacing:-.2px}
+h3{font-size:15px;margin:0 0 8px}
+.sub{color:var(--ink2);font-size:15px;max-width:70ch;margin:0 0 26px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.kpi .n{font-size:27px;font-weight:700;letter-spacing:-1px;line-height:1.1}
+.kpi .l{font-size:12.5px;color:var(--ink2);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.kpi .d{font-size:12.5px;color:var(--ink2);margin-top:7px;border-top:1px solid var(--line);padding-top:7px}
+
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2.5px 8px;border-radius:20px;
+  background:#f1eef7;color:var(--brand2);letter-spacing:.3px}
+.pill.g{background:#e4f4ef;color:#00654a}
+.pill.o{background:#fdf1de;color:#8a5f00}
+
+/* pipeline */
+.pipe{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:6px}
+.stg{flex:1;min-width:150px;background:var(--card);border:1px solid var(--line);
+  padding:13px 14px;position:relative}
+.stg:first-child{border-radius:11px 0 0 11px}
+.stg:last-child{border-radius:0 11px 11px 0}
+.stg+.stg{border-left:0}
+.stg .no{font-size:10.5px;font-weight:700;color:var(--brand2);letter-spacing:1px}
+.stg .ti{font-weight:650;font-size:13.5px;margin:3px 0 5px}
+.stg .de{font-size:12px;color:var(--ink2);line-height:1.45}
+.stg .mo{font-size:10.5px;color:var(--c7);margin-top:7px;font-family:ui-monospace,Menlo,monospace}
+
+/* bars */
+.bar{display:grid;grid-template-columns:132px 1fr 74px;gap:11px;align-items:center;margin-bottom:9px;font-size:13.5px}
+.bar .t{color:var(--ink2);text-align:right;font-size:12.5px}
+.track{background:#efedf4;border-radius:5px;height:22px;overflow:hidden}
+.fill{height:100%;border-radius:5px;display:flex;align-items:center;padding-left:8px;
+  color:#fff;font-size:11.5px;font-weight:600}
+.bar .v{font-size:12.5px;color:var(--ink2)}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink2);
+   padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:9px 10px;border-bottom:1px solid #f1eff5;vertical-align:top}
+tr:last-child td{border-bottom:0}
+
+input,select,textarea{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);
+  border-radius:8px;background:var(--card);color:var(--ink);width:100%}
+textarea{min-height:96px;resize:vertical;line-height:1.5}
+.btn{background:var(--brand2);color:#fff;border:0;border-radius:8px;padding:10px 17px;
+  font:inherit;font-weight:600;font-size:14px;cursor:pointer}
+.btn:hover{filter:brightness(1.12)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+
+.note{background:#fdf8ec;border:1px solid #f0e0b8;border-radius:9px;padding:13px 15px;
+  font-size:13px;color:#5c4708;line-height:1.55}
+.note b{color:#3d2f00}
+.quote{border-left:3px solid var(--c2);padding:3px 0 3px 13px;margin:9px 0;
+  font-size:13.5px;color:var(--ink2);font-style:italic}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.muted{color:var(--ink2);font-size:13px}
+.sm{font-size:12.5px}
+
+/* phone */
+.phone{width:330px;background:#111;border-radius:34px;padding:10px;box-shadow:0 18px 50px rgba(20,18,26,.28)}
+.screen{background:#fff;border-radius:26px;overflow:hidden;height:640px;display:flex;flex-direction:column}
+.pbar{background:var(--brand2);color:#fff;padding:11px 16px;font-size:12.5px;display:flex;justify-content:space-between}
+.pbody{flex:1;overflow-y:auto;padding:16px}
+.track-hero{background:linear-gradient(160deg,#5b2d90,#7b46b5);color:#fff;border-radius:14px;padding:18px;margin-bottom:15px}
+.track-hero .t{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.track-hero .s{font-size:12.5px;opacity:.85;margin-top:2px}
+.fb{border:2px solid var(--brand2);border-radius:14px;padding:15px;background:#fbf9fe}
+.fb .tag{font-size:10.5px;font-weight:700;color:var(--brand2);letter-spacing:1.1px;margin-bottom:7px}
+.fb h4{margin:0 0 7px;font-size:15.5px;line-height:1.35}
+.opt{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;background:#fff;font-size:14px}
+.opt:hover{border-color:var(--brand2);background:#faf7fe}
+.prod{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}
+.thumb{width:52px;height:52px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:23px}
+.reason{background:#f1eef7;border-radius:9px;padding:11px;font-size:12.5px;margin-top:11px;line-height:1.5}
+.guar{display:flex;gap:8px;align-items:center;background:#e4f4ef;border-radius:9px;padding:10px;
+  font-size:12px;color:#00654a;margin-top:9px;font-weight:500}
+
+.tabs{display:flex;gap:3px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
+.tabs button{border:0;background:none;font:inherit;font-size:13.5px;font-weight:550;color:var(--ink2);
+  padding:9px 13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--brand2);border-bottom-color:var(--brand2)}
+.hide{display:none}
+ul.tight{margin:8px 0;padding-left:19px}
+ul.tight li{margin-bottom:6px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-top:12px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+</style>
+</head>
+<body>
+
+<header><div class="wrap hd">
+  <div class="logo">Category Discovery Engine <span>+ First Buy</span></div>
+  <nav>
+    <button class="on" data-p="engine">Discovery Engine</button>
+    <button data-p="live">Try It Live</button>
+    <button data-p="proto">First Buy Prototype</button>
+    <button data-p="method">Method &amp; Validation</button>
+  </nav>
+</div></header>
+
+<!-- ============================================ ENGINE ============================================ -->
+<div class="page on" id="p-engine"><div class="wrap">
+  <h1>What 3,000 reviews say about why people never leave their aisle</h1>
+  <p class="sub">A five-stage pipeline that reads public Zepto reviews, classifies each one against a
+  closed barrier taxonomy, and produces themes where every claim traces back to a quote you can check.
+  Built for the question: <b>why do high-frequency users stop entering new categories?</b></p>
+
+  <div id="nodata" class="note" style="margin-bottom:26px">
+    <b>No corpus loaded.</b> This page renders live from <span class="mono">corpus.js</span>, produced by
+    <span class="mono">2_analyse.py</span>. Run the pipeline, drop the generated <span class="mono">corpus.js</span>
+    next to this file, and every number below fills in from your own data.
+    <div style="margin-top:11px" class="row">
+      <input type="file" id="upl" accept=".json" style="max-width:330px">
+      <span class="sm">or load <span class="mono">analysis.json</span> directly</span>
+    </div>
+  </div>
+
+  <h2>The pipeline</h2>
+  <div class="pipe">
+    <div class="stg"><div class="no">STAGE 1</div><div class="ti">Ingest</div>
+      <div class="de">Google Play + App Store reviews, deduped, unified schema, provenance logged.</div>
+      <div class="mo">python / no LLM</div></div>
+    <div class="stg"><div class="no">STAGE 2</div><div class="ti">Relevance gate</div>
+      <div class="de">Binary screen, tuned for recall. Roughly 9 in 10 reviews are about delivery or price and carry no discovery signal.</div>
+      <div class="mo">haiku · 5 output tokens</div></div>
+    <div class="stg"><div class="no">STAGE 3</div><div class="ti">Structured extract</div>
+      <div class="de">JTBD, categories, barrier code, competitor, workaround, verbatim, self-reported confidence.</div>
+      <div class="mo">sonnet · strict JSON</div></div>
+    <div class="stg"><div class="no">STAGE 4</div><div class="ti">Aggregate</div>
+      <div class="de">Frequency, severity from star rating, category×barrier co-occurrence.</div>
+      <div class="mo">python / deterministic</div></div>
+    <div class="stg"><div class="no">STAGE 5</div><div class="ti">Synthesise</div>
+      <div class="de">Themes ranked by strategic weight, each carrying review IDs and a stated confidence level.</div>
+      <div class="mo">sonnet</div></div>
+    <div class="stg" style="background:#f1eef7"><div class="no">STAGE 6</div><div class="ti">Validate</div>
+      <div class="de">60-review blind hold-out, hand-labelled. Precision, recall, Cohen's kappa, confusion matrix.</div>
+      <div class="mo">human + python</div></div>
+  </div>
+
+  <div class="note" style="margin-top:16px">
+    <b>Why the gate is a separate cheap stage.</b> It cuts extraction spend by roughly 90% at almost no
+    recall cost, and it makes the funnel legible: you can see exactly how many reviews were discarded and why.
+    The gate fails <i>open</i> — on genuine uncertainty it returns YES, because a false positive costs one
+    API call and a false negative loses a signal permanently. Asymmetric error, asymmetric threshold.
+  </div>
+
+  <h2>Funnel</h2>
+  <div class="grid g4" id="funnel"></div>
+
+  <h2>Where the barriers actually sit</h2>
+  <div class="card"><div id="barchart"></div>
+    <div class="legend">
+      <span><i style="background:var(--c1)"></i>Deliberation barriers (hard to fix)</span>
+      <span><i style="background:var(--c7)"></i>Merchandising barriers (cheap to fix)</span>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Categories users talk about not entering</h3><div id="cats" class="muted">—</div></div>
+    <div class="card"><h3>Where they go instead</h3><div id="comps" class="muted">—</div></div>
+  </div>
+
+  <h2>Themes</h2>
+  <div id="themes" class="muted">Load a corpus to see synthesised themes.</div>
+
+  <h2>Evidence explorer</h2>
+  <p class="sub" style="margin-bottom:14px">Every classified review, filterable. This exists so a reader can
+  audit any claim above rather than take it on faith.</p>
+  <div class="card">
+    <div class="row" style="margin-bottom:14px">
+      <select id="fb" style="max-width:220px"><option value="">All barriers</option></select>
+      <select id="fc" style="max-width:200px"><option value="">All competitors</option></select>
+      <input id="fq" placeholder="Search review text…" style="max-width:270px">
+      <span class="muted sm" id="fcount"></span>
+    </div>
+    <div id="evid" class="muted">—</div>
+  </div>
+</div></div>
+
+<!-- ============================================ LIVE ============================================ -->
+<div class="page" id="p-live"><div class="wrap">
+  <h1>Run the classifier on any review, right now</h1>
+  <p class="sub">Paste any review — real or invented — and watch Stage 3 classify it. This is the same prompt
+  and the same closed taxonomy the batch pipeline uses, so what you see here is what runs over 3,000 rows.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>Input</h3>
+      <textarea id="lin" placeholder="e.g. I order groceries here every week but I'd never buy skincare from Zepto — no reviews, no idea if it suits my skin. I just check Nykaa and order there."></textarea>
+      <div class="row" style="margin-top:11px">
+        <select id="lex" style="max-width:100%">
+          <option value="">— load an example —</option>
+          <option value="I order groceries here every week but I would never buy skincare from Zepto. There are no reviews and no way to know if it suits my skin type. I check Nykaa and just order there instead.">Trust · skincare → Nykaa</option>
+          <option value="Wanted to buy dog food for my new puppy. There are 40 options and no information about which is right for a 3 month old lab. Gave up and asked my vet, then ordered from Amazon.">Fit · pet food</option>
+          <option value="Didn't even know Zepto sold kitchen appliances until my friend told me. Been using the app 2 years.">Awareness · appliances</option>
+          <option value="Delivery was 40 minutes late and the rider was rude. Charging me handling fee for this.">Negative control · delivery only</option>
+          <option value="Good app fast delivery 5 stars">Negative control · generic praise</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:11px">
+        <button class="btn" id="lgo">Classify</button>
+        <button class="btn sec" id="lclr">Clear</button>
+      </div>
+      <details style="margin-top:16px">
+        <summary class="sm" style="cursor:pointer;color:var(--ink2)">Run the real model (optional API key)</summary>
+        <p class="sm muted" style="margin:10px 0 8px">Without a key this runs a transparent lexical classifier
+        mirroring the prompt's decision rules — enough to demonstrate the taxonomy, and always available.
+        Paste a key and it calls the actual model with the identical prompt the batch job uses.
+        Google AI Studio keys are free. The key stays in this browser tab: it is never stored, logged,
+        or sent anywhere except the model provider.</p>
+        <input id="lkey" type="password" placeholder="AIza… (Google, free) or sk-ant-… (Anthropic)">
+        <p class="sm muted" style="margin:8px 0 0">Provider is detected from the key prefix.
+        Free key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h3>Output</h3>
+      <div id="lout" class="muted">Classify something to see the structured extraction.</div>
+    </div>
+  </div>
+
+  <h2>The prompt, in full</h2>
+  <p class="sub">Nothing hidden. The taxonomy is closed on purpose — open coding produces labels you can't
+  count, compare, or score against a human.</p>
+  <div class="card"><pre class="mono" style="white-space:pre-wrap;margin:0;line-height:1.6" id="pshow"></pre></div>
+</div></div>
+
+<!-- ============================================ PROTOTYPE ============================================ -->
+<div class="page" id="p-proto"><div class="wrap">
+  <h1>First Buy: a deliberation layer, in the cart, because that is where users said yes</h1>
+  <p class="sub">Interviews located the barrier precisely: the product page cannot answer the question users
+  need answered before entering a new category — no verified reviews, no real photos, no specs, no seller
+  verification. First Buy puts that answer at the moment two of six users had already converted through.</p>
+
+  <div class="grid" style="grid-template-columns:340px 1fr;gap:34px;align-items:start">
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="pbar"><span>9:41</span><span>Order #4471</span></div>
+        <div class="pbody" id="ph"></div>
+      </div></div>
+      <div class="row" style="margin-top:15px">
+        <button class="btn sec" id="preset">Restart flow</button>
+        <select id="persona" style="max-width:180px">
+          <option value="0">Persona: Ananya, 29</option>
+          <option value="1">Persona: Rohit, 34</option>
+          <option value="2">Persona: Meera, 41</option>
+        </select>
+      </div>
+      <p class="sm muted" style="margin-top:9px">Switch persona to see the trigger re-derive from a different
+      purchase history. The recommendation, the question asked, and the objection handled all change.</p>
+    </div>
+
+    <div>
+      <div class="tabs">
+        <button class="on" data-t="why">Why this design</button>
+        <button data-t="loop">Engine → product loop</button>
+        <button data-t="metrics">Metrics</button>
+        <button data-t="risks">Risks</button>
+      </div>
+
+      <div id="t-why">
+        <div class="card" style="margin-bottom:12px">
+          <h3>1 · The surface: the cart — and six interviews are why it moved there</h3>
+          <p class="muted sm" style="margin:0 0 8px">I originally designed this for the post-payment tracking
+          screen: basket already converted, zero cannibalisation risk, user idle for ten minutes. It was a
+          tidy argument and no user supported it.</p>
+          <p class="muted sm" style="margin:0">Two of six had already entered a new category through a
+          checkout prompt. One asked for contextual cart bundling by name. One skips home banners entirely.
+          Nobody expanded by browsing, and nobody described anything resembling a post-delivery moment. So the
+          card moved to the cart, and the cannibalisation risk I had designed around is now the hardest
+          guardrail rather than a solved problem.</p>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>2 · The trigger: an observation, not a recommendation</h3>
+          <p class="muted sm" style="margin:0">Not "you might like." A specific, checkable statement about the
+          user's own behaviour: <i>"You've ordered milk and cereal 21 times. You've never ordered fruit."</i>
+          Specificity is what makes it read as the app noticing rather than the app advertising. It also
+          makes the suggestion falsifiable, which is why it earns attention.</p>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>3 · One question, then one answer</h3>
+          <p class="muted sm" style="margin:0">Not an open chat box — blank inputs in a task-mode app get
+          ignored. One question that resolves the single largest uncertainty in the category, then exactly one
+          product: price, one reason, and the top objection pre-handled. Not a grid. A grid is what the user
+          was already failing at.</p>
+        </div>
+        <div class="card">
+          <h3>4 · The First Buy promise</h3>
+          <p class="muted sm" style="margin:0">Free return on the first purchase in any new category, plus a
+          trial size where supply allows. This attacks price-risk structurally instead of with a discount —
+          cheaper per conversion, and it doesn't train users to wait for coupons.</p>
+        </div>
+      </div>
+
+      <div id="t-loop" class="hide">
+        <div class="card">
+          <h3>The same corpus does both jobs</h3>
+          <p class="muted sm">This is the part that makes it AI-native rather than AI-flavoured. Ranking is not
+          the bottleneck — collaborative filtering has been good at "what would this user like" for fifteen
+          years. The bottleneck is <b>justification</b>: producing a specific, trustworthy reason at the exact
+          moment of hesitation. That is a generative problem, and it is fed by the same review mining that
+          diagnosed the barrier.</p>
+          <table style="margin-top:14px">
+            <tr><th>Engine output</th><th>Product surface it feeds</th></tr>
+            <tr><td>Barrier code for the category</td><td>Which question First Buy asks</td></tr>
+            <tr><td>Top objection verbatims</td><td>The objection line, pre-handled</td></tr>
+            <tr><td>Competitor destination</td><td>Which categories get prioritised for rollout</td></tr>
+            <tr><td>JTBD phrasing</td><td>The words the card is written in</td></tr>
+            <tr><td>Workaround patterns</td><td>What the de-risk offer needs to beat</td></tr>
+          </table>
+          <div class="note" style="margin-top:15px"><b>Hard constraint.</b> Generation is restricted to a
+          retrieval set of verified catalogue and review data. The model may summarise and select; it may not
+          assert. One invented ingredient claim on a baby product is a regulatory and trust event, not a bug.</div>
+        </div>
+      </div>
+
+      <div id="t-metrics" class="hide">
+        <div class="card">
+          <table>
+            <tr><th>Level</th><th>Metric</th><th>Why</th></tr>
+            <tr><td><b>North star</b></td><td>% MAC buying ≥1 new category / month</td><td>The stated goal. Reads over 2 monthly cycles, so directional at 4 weeks.</td></tr>
+            <tr><td><b>Primary</b></td><td>New-category purchases per 1,000 cart-card impressions</td><td>What the experiment is actually powered on.</td></tr>
+            <tr><td><b>Secondary</b></td><td>30-day repeat rate <i>within</i> the new category</td><td>Separates behaviour change from a novelty transaction. This is the metric that can prove the feature failed.</td></tr>
+            <tr><td>Guardrail</td><td>Return rate on First Buy items</td><td>Free returns must not become a loss centre.</td></tr>
+            <tr><td>Guardrail</td><td>Cart-to-order conversion</td><td>The hard one. A card in the cart must never cost an order that was already converting.</td></tr>
+            <tr><td>Guardrail</td><td>Card dismiss rate</td><td>Annoyance signal, and the trigger for the frequency cap.</td></tr>
+          </table>
+          <p class="muted sm" style="margin:14px 0 0"><b>Design:</b> geo-split A/B on the Plateaued Regular
+          cohort, four weeks, powered on the primary metric, with a stopping rule agreed in advance: if
+          cart-to-order conversion drops beyond the pre-agreed margin, the test ends early regardless of how
+          well the primary metric is doing.</p>
+        </div>
+      </div>
+
+      <div id="t-risks" class="hide">
+        <div class="card">
+          <h3>What I'd flag to my own team</h3>
+          <ul class="tight muted sm">
+            <li><b>A cart card can cost you the order.</b> Moving to the cart follows the evidence but raises the stakes: anything that delays checkout risks the basket that was already converting. Cart-to-order conversion is the hardest guardrail, and I'd kill the feature over it.</li>
+            <li><b>Reverse logistics is the expensive half.</b> Free returns is a one-line policy change and a genuinely hard operational programme on a 10-minute network. The policy is not the work.</li>
+            <li><b>Hallucination is a category risk, not a quality risk.</b> Constrained generation over a verified retrieval set, plus a blocklist on health and safety claims.</li>
+            <li><b>Blinkit can ship the same surface in a quarter.</b> The UI isn't defensible. The corpus and the reason-generation quality compound; the card layout doesn't.</li>
+            <li><b>Regulatory context.</b> Zepto already carries a CCPA dark-patterns notice on basket sneaking, and the cart is exactly where that risk lives. The line is consent: never pre-selected, never auto-added, visually separate from the basket, dismissible in one tap. Basket sneaking is adding without asking. This asks.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ============================================ METHOD ============================================ -->
+<div class="page" id="p-method"><div class="wrap">
+  <h1>How I know the machine wasn't just confidently wrong</h1>
+  <p class="sub">An LLM will label 3,000 reviews and hand you a clean chart whether or not the labels mean
+  anything. The chart looks identical either way. So the labels get scored against a human.</p>
+
+  <div class="grid g3" id="valkpi"></div>
+
+  <h2>The protocol</h2>
+  <div class="card">
+    <ol class="tight muted sm" style="padding-left:20px">
+      <li><b>Stratified hold-out.</b> 60 reviews, fixed seed, sampled by model label so rare barriers actually appear. Unstratified sampling from a skewed distribution gives you 55 rows of the majority class and tells you nothing about the classes that matter.</li>
+      <li><b>Blind hand-labelling.</b> Labelled by me against the same closed taxonomy, before looking at any model output. Not blind means not evidence.</li>
+      <li><b>Score.</b> Per-barrier precision, recall and F1 — not accuracy alone, which is inflated by the majority class.</li>
+      <li><b>Cohen's kappa.</b> Agreement corrected for chance. With 7 classes, raw agreement flatters; kappa doesn't.</li>
+      <li><b>Confusion matrix.</b> Reported in full. Knowing <i>which</i> pair the model confuses is more useful than the headline number — a Trust/Fit confusion, for instance, wouldn't change the strategic conclusion, because both are deliberation barriers.</li>
+      <li><b>Negative control.</b> Gate-rejected reviews checked for leakage, confirming the model isn't manufacturing barriers where none exist.</li>
+      <li><b>Triangulation.</b> Every top theme is put to users in interviews as a question I could lose. Reviews are a biased sample; interviews are the check.</li>
+    </ol>
+  </div>
+
+  <h2>What this data cannot tell me</h2>
+  <div class="card">
+    <ul class="tight muted sm">
+      <li><b>App-store reviews are a complaint channel.</b> People who are quietly satisfied and quietly narrow don't write reviews. The silent majority of Plateaued Regulars is invisible here — which is exactly why the interviews recruit for behaviour, not for opinions.</li>
+      <li><b>No behavioural ground truth.</b> Reviews say what people report; they don't say what people did. Every claim here would be re-tested against internal cohort data on day one.</li>
+      <li><b>English-language skew.</b> Hindi and regional-language reviews are under-represented by the gate. A named limitation, not a solved one.</li>
+      <li><b>Self-selection by intensity.</b> Reviews over-represent strong feeling in both directions. Frequency counts here indicate salience, not prevalence — I use them to rank hypotheses, not to size populations.</li>
+    </ul>
+  </div>
+
+  <h2>Reproduce it</h2>
+  <div class="card"><pre class="mono" style="white-space:pre-wrap;margin:0;line-height:1.7">pip install google-play-scraper anthropic
+export ANTHROPIC_API_KEY=sk-ant-…
+
+python 1_collect.py            # ingest, writes corpus_raw.json + provenance log
+python 2_analyse.py            # stages 2-5, writes analysis.json + app/corpus.js
+python 3_validate.py sample    # draws the blind hold-out
+#   … hand-label validation_sheet.csv …
+python 3_validate.py score     # precision / recall / kappa / confusion matrix</pre></div>
+</div></div>
+
+<script>
+/* ============================================================ data */
+const A = window.ZEPTO_ANALYSIS || null;
+const LBL = {
+  B1_TRUST:"Trust", B2_FIT:"Fit", B3_PRICE_RISK:"Price risk", B4_ASSORTMENT:"Assortment",
+  B5_OCCASION:"Occasion", B6_AWARENESS:"Awareness", B7_NONE:"Not relevant"
+};
+/* deliberation barriers vs merchandising barriers — the core visual argument */
+const DELIB = {B1_TRUST:1,B2_FIT:1,B3_PRICE_RISK:1,B5_OCCASION:1};
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ============================================================ nav */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("on"));
+  document.getElementById("p-"+b.dataset.p).classList.add("on");
+  window.scrollTo(0,0);
+});
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  ["why","loop","metrics","risks"].forEach(t=>
+    document.getElementById("t-"+t).classList.toggle("hide", t!==b.dataset.t));
+});
+
+/* ============================================================ render engine */
+function kpi(n,l,d){return `<div class="card kpi"><div class="n">${n}</div><div class="l">${l}</div>${d?`<div class="d">${d}</div>`:""}</div>`}
+
+function render(A){
+  if(!A) return;
+  document.getElementById("nodata").style.display="none";
+  const f=A.funnel||{};
+  const pct = f.collected? (f.relevant/f.collected*100).toFixed(1) : "—";
+  document.getElementById("funnel").innerHTML =
+    kpi((f.collected||0).toLocaleString(),"reviews ingested","Google Play + App Store, deduped")+
+    kpi((f.relevant||0).toLocaleString(),"passed relevance gate",pct+"% — the rest are delivery, price, bugs")+
+    kpi((f.with_barrier||0).toLocaleString(),"carry a barrier","classified into the closed taxonomy")+
+    kpi(A.mean_confidence!=null? A.mean_confidence.toFixed(2):"—","mean self-confidence","model's own calibration, 0-1");
+
+  const B=A.barriers||{}, tot=Object.values(B).reduce((a,b)=>a+b,0)||1;
+  const order=Object.keys(LBL).filter(k=>B[k]);
+  document.getElementById("barchart").innerHTML = order.map(k=>{
+    const v=B[k], w=Math.max(v/tot*100,1.4);
+    const col = k==="B7_NONE"? "var(--c7)" : (DELIB[k]? "var(--c1)":"var(--c7)");
+    const sev = (A.barrier_severity||{})[k];
+    return `<div class="bar"><div class="t">${LBL[k]}</div>
+      <div class="track"><div class="fill" style="width:${w}%;background:${col}">${v}</div></div>
+      <div class="v">${(v/tot*100).toFixed(1)}%${sev!=null?` · sev ${sev}`:""}</div></div>`;
+  }).join("");
+
+  const listify=(o,unit)=>{const e=Object.entries(o||{}).slice(0,12);
+    if(!e.length) return "—";
+    const mx=Math.max(...e.map(x=>x[1]));
+    return e.map(([k,v])=>`<div class="bar" style="grid-template-columns:118px 1fr 46px">
+      <div class="t">${esc(k)}</div><div class="track" style="height:16px">
+      <div class="fill" style="width:${v/mx*100}%;background:var(--c2);font-size:0"></div></div>
+      <div class="v">${v}</div></div>`).join("");};
+  document.getElementById("cats").innerHTML=listify(A.categories);
+  document.getElementById("comps").innerHTML=listify(A.competitors);
+
+  /* themes */
+  const T=(A.themes&&A.themes.themes)||[];
+  document.getElementById("themes").innerHTML = T.length? T.map((t,i)=>`
+    <div class="card" style="margin-bottom:12px">
+      <div class="row" style="justify-content:space-between;margin-bottom:9px">
+        <span class="pill">THEME ${i+1}</span>
+        <span class="pill ${t.confidence==='high'?'g':'o'}">${esc(t.confidence)} confidence · n=${t.n_reviews||(t.evidence_ids||[]).length}</span>
+      </div>
+      <h3 style="font-size:16.5px;line-height:1.35">${esc(t.title)}</h3>
+      <p class="muted sm" style="margin:0 0 4px">${esc(t.what_we_found)}</p>
+      <p class="muted sm" style="margin:0 0 8px"><b>Mechanism:</b> ${esc(t.why_it_happens)}</p>
+      ${(t.quotes||[]).slice(0,2).map(q=>`<div class="quote">“${esc(q)}”</div>`).join("")}
+      <p class="sm" style="margin:9px 0 0"><b>So what:</b> ${esc(t.so_what)}</p>
+      <p class="sm muted" style="margin:6px 0 0">Confidence basis: ${esc(t.confidence_reason)}</p>
+    </div>`).join("") +
+    (A.themes.surprise? `<div class="note"><b>Most counter-intuitive finding:</b> ${esc(A.themes.surprise)}</div>`:"") +
+    (A.themes.what_this_data_cannot_tell_us? `<div class="note" style="margin-top:10px"><b>Limits of this source:</b> ${esc(A.themes.what_this_data_cannot_tell_us)}</div>`:"")
+    : `<p class="muted">No themes in the loaded file.</p>`;
+
+  /* evidence explorer */
+  const EV=A.evidence||[];
+  const sel=document.getElementById("fb");
+  Object.keys(LBL).forEach(k=>{ if(EV.some(e=>e.barrier===k))
+    sel.innerHTML+=`<option value="${k}">${LBL[k]}</option>`;});
+  const cs=[...new Set(EV.map(e=>e.competitor_mentioned).filter(Boolean))];
+  cs.forEach(c=>document.getElementById("fc").innerHTML+=`<option value="${esc(c)}">${esc(c)}</option>`);
+
+  function drawEv(){
+    const b=sel.value, c=document.getElementById("fc").value,
+          q=document.getElementById("fq").value.toLowerCase();
+    const r=EV.filter(e=>(!b||e.barrier===b)&&(!c||e.competitor_mentioned===c)&&
+                         (!q||(e.text||"").toLowerCase().includes(q)));
+    document.getElementById("fcount").textContent=`${r.length} of ${EV.length} reviews`;
+    document.getElementById("evid").innerHTML = r.length? `<table><tr>
+      <th style="width:92px">Barrier</th><th>Review</th><th style="width:130px">Signal</th></tr>`+
+      r.slice(0,120).map(e=>`<tr>
+        <td><span class="pill">${LBL[e.barrier]||esc(e.barrier)}</span>
+            <div class="sm muted" style="margin-top:4px">${e.rating||"—"}★</div></td>
+        <td>${esc(e.text)}
+          ${e.verbatim?`<div class="quote" style="margin:7px 0 0">“${esc(e.verbatim)}”</div>`:""}</td>
+        <td class="sm muted">${e.job_to_be_done?esc(e.job_to_be_done)+"<br><br>":""}
+          ${e.competitor_mentioned?`→ ${esc(e.competitor_mentioned)}<br>`:""}
+          ${e.confidence!=null?`conf ${e.confidence}`:""}</td></tr>`).join("")+`</table>`
+      : `<p class="muted">Nothing matches.</p>`;
+  }
+  sel.onchange=drawEv; document.getElementById("fc").onchange=drawEv;
+  document.getElementById("fq").oninput=drawEv; drawEv();
+
+  /* validation */
+  const V=A.validation;
+  document.getElementById("valkpi").innerHTML = V?
+    kpi((V.accuracy*100).toFixed(0)+"%","raw agreement","inflated by the majority class — reported for completeness only")+
+    kpi(V.cohens_kappa.toFixed(2),"Cohen's kappa",esc(V.kappa_reading||""))+
+    kpi(V.n,"blind hand-labelled","stratified, fixed seed, labelled before seeing model output")
+    : kpi("—","validation pending","run 3_validate.py, then merge validation.json into analysis.json")+
+      kpi("—","Cohen's kappa","")+kpi("60","hold-out size","stratified by model label, fixed seed");
+}
+render(A);
+
+document.getElementById("upl").onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{try{render(JSON.parse(r.result));}catch(err){alert("Could not parse: "+err.message);}};
+  r.readAsText(f);
+};
+
+/* ============================================================ live classifier */
+const PROMPT = `Extract structured signal from one review of Zepto, an Indian 10-minute
+grocery delivery app. Zepto also sells beauty, baby, pet, wellness, home,
+kitchen and electronics.
+
+Research question: why do users keep buying from the same few categories
+instead of trying new ones?
+
+Return ONLY a JSON object:
+
+{
+  "job_to_be_done": "the underlying job in the user's own framing, or null",
+  "categories_mentioned": ["lowercase category names"],
+  "barrier": "B1_TRUST | B2_FIT | B3_PRICE_RISK | B4_ASSORTMENT | B5_OCCASION | B6_AWARENESS | B7_NONE",
+  "barrier_reasoning": "one sentence",
+  "competitor_mentioned": "amazon | flipkart | nykaa | bigbasket | blinkit | instamart | local_store | other | null",
+  "workaround": "what the user does instead, or null",
+  "verbatim": "an EXACT substring copied from the review, max 200 chars, or null",
+  "sentiment": "positive | negative | mixed | neutral",
+  "confidence": 0.0
+}
+
+B1_TRUST       won't buy without reviews/ratings/social proof
+B2_FIT         can't tell which variant suits them; options without guidance
+B3_PRICE_RISK  too much money at stake on something unfamiliar
+B4_ASSORTMENT  category exists, specific item not stocked
+B5_OCCASION    need arises away from the app
+B6_AWARENESS   didn't know Zepto sold this
+B7_NONE        not about category discovery
+
+Rules:
+- "verbatim" MUST be copied exactly. Never paraphrase. An invented quote
+  invalidates the row and is automatically rejected downstream.
+- confidence is your own calibration. Below 0.5 means guessing.
+- Delivery / price / bugs / support only -> B7_NONE.`;
+document.getElementById("pshow").textContent = PROMPT;
+
+/* Apostrophes are stripped from both the text and the keywords before matching —
+   real review text is full of "didnt", "dont", "wont". Ignoring that silently
+   loses whole classes of signal. */
+const RULES=[
+  {b:"B1_TRUST",   w:["review","reviews","rating","ratings","trust","genuine","fake","authentic","expiry","expired","quality of","not sure if real"]},
+  {b:"B2_FIT",     w:["which one","which brand","confus","too many option","no information","no details","dont know which","not sure which","suits my","for my skin","right size","which is best","ingredient"]},
+  {b:"B3_PRICE_RISK",w:["expensive to try","waste of money","risk","costly","too much money","regret"]},
+  {b:"B4_ASSORTMENT",w:["not available","out of stock","dont have","doesnt stock","limited option","no variety","wish they had","unavailable"]},
+  {b:"B5_OCCASION",w:["forget","forgot","remember","only when","by the time","in a hurry","quick order"]},
+  {b:"B6_AWARENESS",w:["didnt know","did not know","never knew","had no idea","no idea they sold","unaware","never realised","never realized"]},
+];
+const strip = s => s.toLowerCase().replace(/[\u2018\u2019\u0027\u0060]/g,"");
+const COMPS=["amazon","flipkart","nykaa","bigbasket","blinkit","instamart"];
+const CATWORDS=["skincare","skin care","beauty","makeup","cosmetic","baby","diaper","pet","dog","cat",
+  "electronics","appliance","kitchen","supplement","protein","vitamin","medicine","pharmacy","fruit",
+  "vegetable","snack","personal care","home","fashion","toy","stationery","grocery","dairy","cereal"];
+
+function heuristic(t){
+  const s=strip(t);
+  const hits=RULES.map(r=>({b:r.b,n:r.w.filter(w=>s.includes(strip(w))).length})).filter(x=>x.n>0)
+                  .sort((a,b)=>b.n-a.n);
+  const deliveryOnly=/late|delay|rider|refund|crash|bug|charge|fee|support/.test(s) && !hits.length;
+  const b = deliveryOnly||!hits.length ? "B7_NONE" : hits[0].b;
+  const comp = COMPS.find(c=>s.includes(c)) || null;
+  const cats = [...new Set(CATWORDS.filter(c=>s.includes(c)))];
+  const conf = b==="B7_NONE"?0.6:Math.min(0.45+0.15*hits[0].n,0.9);
+  let verb=null;
+  if(b!=="B7_NONE"){
+    const kw = strip(RULES.find(r=>r.b===b).w.find(w=>s.includes(strip(w))));
+    const i=s.indexOf(kw);
+    verb = t.slice(Math.max(0,i-55), Math.min(t.length,i+kw.length+75)).trim();
+  }
+  return {job_to_be_done:null, categories_mentioned:cats, barrier:b,
+    barrier_reasoning:"Lexical rules mirroring the prompt's decision criteria.",
+    competitor_mentioned:comp, workaround:null, verbatim:verb,
+    sentiment:/never|won't|wont|gave up|instead|no idea/.test(s)?"negative":"neutral",
+    confidence:+conf.toFixed(2), _engine:"heuristic"};
+}
+
+/* Provider is inferred from the key prefix. Google keys start AIza and are free;
+   Anthropic keys start sk-ant. Same prompt either way, so the comparison is fair. */
+function parseModelJson(raw){
+  raw=raw.trim().replace(/^```(?:json)?|```$/gm,"").trim();
+  try{ return JSON.parse(raw); }
+  catch(e){ const m=raw.match(/\{[\s\S]*\}/); if(m) return JSON.parse(m[0]); throw e; }
+}
+
+/* Auth goes in the x-goog-api-key header, not the ?key= query parameter.
+   Keys issued since 2026 start "AQ." and are rejected on the query-param path;
+   the header works for those and for legacy AIza keys alike. */
+async function callGemini(t,key){
+  const body={contents:[{parts:[{text:PROMPT+"\n\nREVIEW:\n"+t}]}],
+              generationConfig:{temperature:0,maxOutputTokens:700}};
+  let last;
+  for(const model of ["gemini-flash-latest","gemini-3.5-flash",
+                      "gemini-2.5-flash","gemini-2.0-flash"]){
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {method:"POST",
+       headers:{"content-type":"application/json","x-goog-api-key":key},
+       body:JSON.stringify(body)});
+    if(r.ok){
+      const d=await r.json();
+      const txt=d?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if(!txt){ last="empty response from "+model; continue; }
+      const o=parseModelJson(txt); o._engine="model · "+model; return o;
+    }
+    last="API "+r.status+" — "+(await r.text()).slice(0,160);
+  }
+  throw new Error(last);
+}
+
+async function callAnthropic(t,key){
+  const r=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"content-type":"application/json","x-api-key":key,
+             "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:"claude-sonnet-5",max_tokens:700,
+      messages:[{role:"user",content:PROMPT+"\n\nREVIEW:\n"+t}]})
+  });
+  if(!r.ok) throw new Error("API "+r.status+" — "+(await r.text()).slice(0,180));
+  const d=await r.json();
+  const o=parseModelJson(d.content[0].text); o._engine="model · claude"; return o;
+}
+
+const callModel=(t,key)=> key.startsWith("sk-") ? callAnthropic(t,key) : callGemini(t,key);
+
+document.getElementById("lex").onchange=e=>{ if(e.target.value) document.getElementById("lin").value=e.target.value; };
+document.getElementById("lclr").onclick=()=>{document.getElementById("lin").value="";
+  document.getElementById("lout").innerHTML='<p class="muted">Classify something to see the structured extraction.</p>';};
+
+document.getElementById("lgo").onclick=async()=>{
+  const t=document.getElementById("lin").value.trim();
+  const out=document.getElementById("lout");
+  if(!t){out.innerHTML='<p class="muted">Paste a review first.</p>';return;}
+  out.innerHTML='<p class="muted">Classifying…</p>';
+  const key=document.getElementById("lkey").value.trim();
+  let d;
+  try{ d = key? await callModel(t,key) : heuristic(t); }
+  catch(err){ out.innerHTML=`<div class="note"><b>Model call failed.</b> ${esc(err.message)}
+    <br><br>Falling back to the lexical classifier.</div>`; d=heuristic(t); }
+
+  /* verbatim guard, same rule as the batch pipeline */
+  let rejected=false;
+  if(d.verbatim){
+    const n=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+    if(!n(t).includes(n(d.verbatim))){ rejected=true; d.verbatim=null; }
+  }
+  const delib = DELIB[d.barrier];
+  out.innerHTML=`
+    <div class="row" style="margin-bottom:13px">
+      <span class="pill" style="font-size:13px;padding:5px 12px">${LBL[d.barrier]||esc(d.barrier)}</span>
+      <span class="pill ${d.confidence>=0.7?'g':'o'}">confidence ${d.confidence}</span>
+      <span class="pill">${d._engine==="model"?"live model":"lexical fallback"}</span>
+      ${d.barrier!=="B7_NONE"?`<span class="pill ${delib?'':'g'}">${delib?"deliberation barrier":"merchandising barrier"}</span>`:""}
+    </div>
+    ${rejected?`<div class="note" style="margin-bottom:12px"><b>Quote rejected.</b> The returned verbatim
+      was not found character-for-character in the source, so it was dropped automatically. This guard is
+      what makes hallucination detectable rather than invisible.</div>`:""}
+    <table>
+      <tr><th>field</th><th>value</th></tr>
+      <tr><td class="mono sm">barrier_reasoning</td><td>${esc(d.barrier_reasoning)||"—"}</td></tr>
+      <tr><td class="mono sm">job_to_be_done</td><td>${esc(d.job_to_be_done)||"—"}</td></tr>
+      <tr><td class="mono sm">categories</td><td>${(d.categories_mentioned||[]).map(esc).join(", ")||"—"}</td></tr>
+      <tr><td class="mono sm">competitor</td><td>${esc(d.competitor_mentioned)||"—"}</td></tr>
+      <tr><td class="mono sm">workaround</td><td>${esc(d.workaround)||"—"}</td></tr>
+      <tr><td class="mono sm">sentiment</td><td>${esc(d.sentiment)||"—"}</td></tr>
+      <tr><td class="mono sm">verbatim</td><td>${d.verbatim?`<i>“${esc(d.verbatim)}”</i>`:"—"}</td></tr>
+    </table>
+    ${d._engine!=="model"?`<p class="sm muted" style="margin:13px 0 0">Lexical fallback: transparent
+      keyword rules mirroring the prompt's decision criteria. It exists so this page works for any reader
+      without a key. Add a key above to run the real model.</p>`:""}`;
+};
+
+/* ============================================================ prototype */
+const PERSONAS=[
+ {name:"Ananya, 29", hist:"Ordered 31 times in 90 days. Milk, bread, eggs, atta, Maggi, curd, onions.",
+  never:"beauty & personal care", obs:"You've ordered from 7 categories in 90 days. Sunscreen isn't one of them — and it's 34°C outside.",
+  q:"Quick one — how does your skin usually feel by evening?",
+  opts:["Oily, shiny by 4pm","Dry or tight","Somewhere in between"],
+  pick:{emoji:"🧴", name:"Derma Co 1% Hyaluronic Sunscreen SPF 50", price:"₹449", size:"50g",
+   reason:"Of 1,240 Zepto buyers who described oily skin, this was the most re-ordered sunscreen. The single most common complaint about the two cheaper options in this aisle was stickiness — this one is the gel formulation, which is what people switched <i>to</i>.",
+   objection:"Worried it'll feel heavy under makeup? That was the top objection in reviews of the alternatives, not this one."}},
+ {name:"Rohit, 34", hist:"Ordered 44 times in 90 days. Beer, chips, cold drinks, frozen snacks, bread.",
+  never:"wellness", obs:"You've ordered late-night snacks 19 times this quarter. You've never ordered anything from wellness.",
+  q:"What usually gets you at 11pm?",
+  opts:["Genuinely hungry","Bored, out of habit","Watching something"],
+  pick:{emoji:"🥜", name:"Yoga Bar Multigrain Energy Bar, pack of 6", price:"₹279", size:"6 × 38g",
+   reason:"The most common swap among Zepto users who bought both chips and this bar in the same month. Not a diet product — reviewers describe it as 'the thing I reach for instead', which is a different job from 'the healthy option'.",
+   objection:"Expecting it to taste like cardboard? That's the top complaint on two other bars in this aisle. This one's most-used review word is 'chewy'."}},
+ {name:"Meera, 41", hist:"Ordered 27 times in 90 days. Vegetables, dal, rice, ghee, spices, curd.",
+  never:"home & kitchen", obs:"You've bought fresh vegetables 26 times in 90 days. You've never bought anything to store them in.",
+  q:"Where do vegetables usually go when they get home?",
+  opts:["Straight into the fridge","Left out on the counter","Bit of both"],
+  pick:{emoji:"🥡", name:"Borosil Vegetable Storage Container, set of 3", price:"₹699", size:"3 sizes",
+   reason:"Zepto reviewers who bought vegetables 20+ times a quarter mentioned spoilage more than any other group. Among containers in this aisle, this set had the fewest complaints about lids — which was the top complaint overall.",
+   objection:"₹699 is the most you'd have spent on Zepto in one go. First Buy covers the return if it doesn't fit your fridge."}}
+];
+
+let P=0, step=0;
+function drawPhone(){
+  const p=PERSONAS[P], ph=document.getElementById("ph");
+  let h=`<div class="track-hero"><div class="t">Your cart · 6 items</div>
+    <div class="s">₹612 · arrives in ~10 min</div></div>`;
+
+  if(step===0){
+    h+=`<div class="fb"><div class="tag">FIRST BUY</div>
+      <h4>${p.obs}</h4>
+      <p class="sm muted" style="margin:0 0 12px">Takes 20 seconds. Arrives with this order.</p>
+      <button class="btn" style="width:100%" onclick="go(1)">Show me one thing</button>
+      <button class="btn sec" style="width:100%;margin-top:7px" onclick="go(9)">Not now</button></div>
+      <p class="sm muted" style="margin-top:14px">Based on: ${p.hist}</p>`;
+  }
+  else if(step===1){
+    h+=`<div class="fb"><div class="tag">FIRST BUY · 1 OF 1</div>
+      <h4>${p.q}</h4>
+      ${p.opts.map(o=>`<div class="opt" onclick="go(2)">${o}</div>`).join("")}
+      <p class="sm muted" style="margin:10px 0 0">One question, then one answer. No scrolling through a grid —
+      the grid is what you were already ignoring.</p></div>`;
+  }
+  else if(step===2){
+    const k=p.pick;
+    h+=`<div class="fb"><div class="tag">FIRST BUY · FOR YOU</div>
+      <div class="prod"><div class="thumb" style="background:#f1eef7">${k.emoji}</div>
+        <div><div style="font-weight:600;font-size:14px;line-height:1.35">${k.name}</div>
+        <div class="sm muted" style="margin-top:3px">${k.size}</div>
+        <div style="font-weight:700;margin-top:5px">${k.price}</div></div></div>
+      <div class="reason"><b>Why this one</b><br>${k.reason}</div>
+      <div class="reason" style="background:#fdf8ec"><b>The thing you're probably wondering</b><br>${k.objection}</div>
+      <div class="guar">🛡 First Buy: free return on your first order in a new category</div>
+      <button class="btn" style="width:100%;margin-top:11px" onclick="go(3)">Add to this order · ${k.price}</button>
+      <button class="btn sec" style="width:100%;margin-top:7px" onclick="go(9)">Not for me</button></div>`;
+  }
+  else if(step===3){
+    h+=`<div class="fb" style="border-color:var(--ok);background:#f2fbf8">
+      <div class="tag" style="color:#00654a">ADDED TO CART</div>
+      <h4>Added · cart is now ₹1,061</h4>
+      <p class="sm muted" style="margin:0 0 11px">Arrives with the rest of the order. Free return if it isn't
+      right — no questions, no photo, no call.</p>
+      <div class="guar">✓ First new category in 94 days</div></div>
+      <div class="note" style="margin-top:14px;font-size:12px">
+      <b>What just got measured:</b> one new-category add attributed to First Buy. The metric that matters
+      comes in 30 days — does she buy sunscreen again? If not this was a sale, not a habit, and the feature
+      hasn't earned its place. The guardrail that could kill it fires sooner: if cart-to-order conversion
+      dips, the card is costing orders that were already converting.</div>`;
+  }
+  else{
+    h+=`<div class="fb" style="border-color:var(--line);background:#fafafc">
+      <h4 style="font-size:14.5px">Dismissed</h4>
+      <p class="sm muted" style="margin:0 0 11px">Logged as a dismiss. Same category won't reappear for 21 days.
+      Three dismisses in a row and First Buy goes quiet for a month.</p>
+      <button class="btn sec" style="width:100%" onclick="go(0)">Replay</button></div>
+      <div class="note" style="margin-top:14px;font-size:12px"><b>Why the frequency cap matters:</b> the
+      cart has no escape hatch — the user is mid-checkout. A surface with captive attention
+      has to be governed harder than one the user chose to open, not softer.</div>`;
+  }
+  ph.innerHTML=h;
+}
+function go(s){step=s;drawPhone();}
+document.getElementById("preset").onclick=()=>go(0);
+document.getElementById("persona").onchange=e=>{P=+e.target.value;go(0);};
+drawPhone();
+</script>
+</body>
+</html>
